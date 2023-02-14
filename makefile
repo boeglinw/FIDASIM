@@ -19,10 +19,10 @@ PYTHON_EXEC = $(shell which python)
 #Operating Systems
 OS := $(shell uname)
 
-#Compilers
+#Compilers WN added clang and clang++ for macOS see how that works
 SUPPORTED_FC = gfortran pgf90 ifort
-SUPPORTED_CC = gcc pgcc
-SUPPORTED_CXX = g++ pgc++
+SUPPORTED_CC = gcc pgcc clang
+SUPPORTED_CXX = g++ pgc++ clang++
 
 HAS_FC := $(strip $(foreach SC, $(SUPPORTED_FC), $(findstring $(SC), $(FC))))
 ifeq ($(HAS_FC),)
