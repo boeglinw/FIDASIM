@@ -24,3 +24,4 @@ sge*
 travis_key
 *.pyc
 .nfs*
+.DS_Store
