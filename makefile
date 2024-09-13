@@ -25,8 +25,8 @@ OS := $(shell uname)
 
 #Compilers
 SUPPORTED_FC = gfortran pgf90 ifort
-SUPPORTED_CC = gcc pgcc
-SUPPORTED_CXX = g++ pgc++
+SUPPORTED_CC = gcc pgcc clang
+SUPPORTED_CXX = g++ pgc++ clang++
 
 HAS_FC := $(strip $(foreach SC, $(SUPPORTED_FC), $(findstring $(SC), $(FC))))
 ifeq ($(HAS_FC),)

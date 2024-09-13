@@ -64,7 +64,10 @@ def fluxmap(g):
 
     # Find rho and psi
     bcentr = np.abs(g['bcentr'])
-    rho = np.linspace(0.0, np.sqrt(flux_b/bcentr), 101)
+    # WB use np.abs(flux_b) instead of flux_b to avoid negative sqrt
+    rho = np.linspace(0.0, np.sqrt(np.abs(flux_b)/bcentr), 101)
+    # original
+    #rho = np.linspace(0.0, np.sqrt(flux_b/bcentr), 101)
 
     flux_new = bcentr*rho**2
     psi = scipy.interpolate.interp1d(np.append(flux,flux_b),np.append(psi, 1.0),'cubic',fill_value='extrapolate')(flux_new)

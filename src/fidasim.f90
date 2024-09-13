@@ -12775,7 +12775,7 @@ subroutine cfpd_f
     type(LocalEMFields) :: fields
     real(Float64) :: pgyro, vnet_square, factor, vabs
     real(Float64) :: eb, pitch, erel, rate, kappa, gyro, fbm_denf
-    integer :: ie, ip, ich, ie3, iray, ist, cnt
+    integer :: ie, ip, ich, ie3, iray, ist, cnt, is_inside
 
     if(.not.any(thermal_mass.eq.H2_amu)) then
         write(*,'(T2,a)') 'CFPD_F: Thermal Deuterium is not present in plasma'
@@ -12802,6 +12802,10 @@ subroutine cfpd_f
     factor = 0.5d0*fbm%dE*fbm%dp*ctable%dl !0.5 for TRANSP-pitch (E,p) space factor
     !$OMP PARALLEL DO schedule(guided) private(vi,vi_norm,v3_xyz,xyz,r_gyro,plasma,fields,pgyro,&
     !$OMP& vnet_square,vabs,eb,pitch,erel,rate,kappa,gyro,fbm_denf,ie,ip,ich,ie3,iray,ist,cnt)
+    
+    ! WB test of trajectories
+    
+    
     channel_loop: do ich=1, ctable%nchan
         E3_loop: do ie3=1, ctable%nenergy
             cnt = 0
@@ -12811,9 +12815,22 @@ subroutine cfpd_f
 
                     !! Calculate position and velocity in beam coordinates
                     call convert_sightline_to_xyz(ie3, ist, iray, ich, xyz, v3_xyz)
-
+                    if ((ich .eq. 1) .and. (iray .eq. 1) .and. (ie3 .eq. 1)) then
+                    !    save trajectory information  
+                        write(26,*) xyz, v3_xyz
+                    endif
                     !! Get fields at sightline position
                     call get_fields(fields, pos=xyz)
+                    if ((ich .eq. 1) .and. (iray .eq. 1) .and. (ie3 .eq. 1)) then
+                     ! save field information  
+                        if (fields%in_plasma) then
+                            is_inside = 1
+                        else
+                            is_inside = 0
+                        endif
+                        write(27,*) is_inside, xyz, fields%br,  fields%bt, fields%bz
+                    endif
+                    
                     if(.not.fields%in_plasma) cycle step_loop
 
                     !! Get plasma parameters at sightline position

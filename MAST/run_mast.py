@@ -1,6 +1,9 @@
 #!/bin/sh
 "exec" "$FIDASIM_DIR/deps/python" "$0" "$@"
 
+# prepare input file for MAST FIDASIM calculation
+
+
 import argparse
 import numpy as np
 from numpy import linalg as LA
@@ -11,7 +14,7 @@ import pickle as PCL
 
 #%% read a pickled dictionary
 
-def read_dict(filename):
+def read_pcl(filename):
     f = None
     with open(filename, 'rb') as f:
         d = PCL.load(f)
@@ -22,11 +25,11 @@ def read_dict(filename):
 
 
 #%%
-def test_cfpd(dfile):
-    # setup the cfpd geometry for FIDASIM from the output of calc_orbits_fidasim.py
+def setup_cfpd(dfile):
+    # setup the cfpd geometry fir FIDASIM from the output of calc_orbits_fidasim.py
     print("setup cfpd data")
     shapes = {'rect':1, 'round':2}
-    FD = read_dict(dfile)
+    FD = read_pcl(dfile)
     FD['data_source'] = 'calc_orbits_fidasim.py'
 
     FD['radius'] = np.array([LA.norm(v) for v in FD['a_cent'].T])
@@ -47,9 +50,13 @@ def test_cfpd(dfile):
 
     return cfpd_geometry
     
-#%%
-def test_beam(beta=0.0):
-    # setup neutralbeam geometry
+#%% setup neutralbeam geometry
+
+# at this point this could be anything
+
+
+def setup_beam(beta=0.0):
+    
     uvw_src = np.array([0.0, -530.0 - 2.0*np.cos(beta), 2.0*np.sin(beta)])
     uvw_pos = np.array([0.0, -530.0, 0.0])
     uvw_axis = uvw_pos - uvw_src
@@ -80,7 +87,9 @@ def test_beam(beta=0.0):
 
     return nbi
 
-def test_chords():
+
+#%% setup viewing cords for FIDA
+def setup_chords():
     ulens = np.zeros(3)
     vlens = np.full(3,-170.0)
     wlens = np.full(3,100.0)
@@ -105,7 +114,8 @@ def test_chords():
 
     return chords
 
-def test_npa():
+#%% setup NPA vires
+def setup_npa():
     nchan = 3
     ulens = np.zeros(nchan)
     vlens = np.repeat(-170.0,nchan)
@@ -152,57 +162,15 @@ def test_npa():
 
     return npa_chords
 
-def test_profiles(filename, grid, rhogrid):
-    prof = fs.utils.read_ncdf(filename)
 
-    impurity_charge = 6
-    nthermal = 1
-    species_mass = np.array([2.01410178e0])
-    rho = prof["rho"]
-    dene_rho = prof["dene"]*1e-6
-    ti_rho = prof["ti"]*1e-3
-    te_rho = prof["te"]*1e-3
-    zeff_rho = prof["zeff"]*1e0
-    omega_rho = prof["omega"]*1e0
 
-    dene = interp1d(rho, dene_rho,fill_value='extrapolate')(rhogrid)
-    dene = np.where(dene > 0.0, dene, 0.0).astype('float64')
-
-    ti = interp1d(rho, ti_rho,fill_value='extrapolate')(rhogrid)
-    ti = np.where(ti > 0.0, ti, 0.0).astype('float64')
-
-    te = interp1d(rho, te_rho,fill_value='extrapolate')(rhogrid)
-    ti = np.where(te > 0.0, te, 0.0).astype('float64')
-
-    zeff = interp1d(rho, zeff_rho,fill_value='extrapolate')(rhogrid)
-    zeff = np.where(te > 1.0, te, 1.0).astype('float64')
-
-    denimp = dene*(zeff - 1)/(impurity_charge*(impurity_charge-1))
-    deni = (dene - impurity_charge*denimp).reshape(1,grid['nr'],grid['nz'])
-    deni = np.where(deni > 0.0, deni, 0.0).astype('float64')
-
-    vt = grid["r2d"]*interp1d(rho, omega_rho,fill_value='extrapolate')(rhogrid)
-    vr = 0*vt
-    vz = 0*vt
-    denn = zeff*0 + 1e8
-    max_rho = np.max(np.abs(rho))
-
-    mask = np.where(rhogrid <= max_rho, np.int64(1), np.int64(0))
-
-    profiles = {"time":1.0, "data_source":filename, "mask":mask,
-                "deni":deni,"denimp":denimp,"species_mass":species_mass,
-                "nthermal":nthermal,"impurity_charge":impurity_charge,
-                "te":te, "ti":ti, "vr":vr, "vt":vt, "vz":vz,
-                "dene":dene, "zeff":zeff, "denn":denn,"profiles":prof}
-
-    return profiles
-
-def run_test(args):
+#%% main setup code creating input files
+def run_main_setup(args):
     fida_dir = fs.utils.get_fidasim_dir()
-    test_dir = fida_dir + '/test'
+    test_dir = fida_dir + '/MAST'
 
-    einj = 72.5 #keV
-    pinj = 1.7  #MW
+    einj = 59.585 #keV
+    pinj = 1.62044   #MW
 
     cgfitf = np.array([-0.109171,0.0144685,-7.83224e-5])
     cgfith = np.array([0.0841037,0.00255160,-7.42683e-8])
@@ -211,9 +179,9 @@ def run_test(args):
     tfracs = 1.0-ffracs-hfracs
     current_fractions = np.array([ffracs,hfracs,tfracs])
 
-    basic_inputs = {"device":"test", 
-                    "shot":1, 
-                    "time":1.0,
+    basic_inputs = {"device":"MAST", 
+                    "shot":29904, 
+                    "time":0.214,
                     "einj":einj, 
                     "pinj":pinj, 
                     "current_fractions":current_fractions,
@@ -257,12 +225,12 @@ def run_test(args):
     basic_bgrid = {"nx":50, 
                    "ny":60, 
                    "nz":70,
-                   "xmin":-50.0, 
-                   "xmax":50.0,
-                   "ymin":-230.0,
-                   "ymax":-110.0,
-                   "zmin":-70.0, 
-                   "zmax":70.0,
+                   "xmin":-200.0, 
+                   "xmax":200.0,
+                   "ymin":-200.0,
+                   "ymax":200.0,
+                   "zmin":-200.0, 
+                   "zmax":200.0,
                    "alpha":0.0, 
                    "beta":0.0, 
                    "gamma":0.0,
@@ -275,17 +243,22 @@ def run_test(args):
     inputs["comment"] = "Non-rotated, Non-tilted grid, realistic profiles"
     inputs["runid"] = args.runid
 
-    nbi = test_beam()
-    spec = test_chords()
-    npa = test_npa()
-    cfpd_geo = test_cfpd('Test_detector_array1.pcl')
+    nbi = setup_beam()
+    spec = setup_chords()
+    npa = setup_npa()
+    cfpd_geo = setup_cfpd('Test_detector_array1.pcl')
 
-    grid = fs.utils.rz_grid(100.0, 240.0, 70, -100.0, 100.0, 100)
+    # directories of TRANSP output
+    TRANSP_DIR = '/Users/boeglinw/Documents/boeglin.1/Fusion/Fusion_Products/MAST_data/TRANSP/29904/'
+    EQDSK_DIR = '/Users/boeglinw/Documents/boeglin.1/Fusion/Fusion_Products/orbit_mod90_calc/FIDASIM/data/'
 
-    equil, rho, btipsign = fs.utils.read_geqdsk(test_dir+'/g000001.01000', grid, ccw_phi=True, exp_Bp=0)
-    fbm = fs.utils.read_nubeam(test_dir+'/test_fi_1.cdf', grid, btipsign = btipsign)
+    #setup grid for R-Z
+    grid = fs.utils.rz_grid(0.01, 200.0, 70, -200.0, 200.0, 100)
 
-    plasma = test_profiles(test_dir+'/test_profiles.cdf',grid,rho)
+    equil, rhogrid, btipsign = fs.utils.read_geqdsk(EQDSK_DIR+'g029906.00214.dat', grid, ccw_phi=True, exp_Bp=0)
+    fbm = fs.utils.read_nubeam(TRANSP_DIR + '29904O04_fi_1.cdf', grid, btipsign = btipsign)
+    
+    plasma = fs.utils.extract_transp_plasma(TRANSP_DIR +'29904O04.CDF', basic_inputs['time'], grid, rhogrid)
     plasma['deni'] = plasma['deni'] - fbm['denf'].reshape(1,grid['nr'],grid['nz'])
     plasma['deni'] = np.where(plasma['deni'] > 0.0, plasma['deni'], 0.0).astype('float64')
 
@@ -293,6 +266,7 @@ def run_test(args):
 
     return 0
 
+#%% main script to run as default
 def main():
     parser = argparse.ArgumentParser(description="Creates a FIDASIM test case")
 
@@ -301,7 +275,7 @@ def main():
 
     args = parser.parse_args()
 
-    run_test(args)
+    run_main_setup(args)
 
 if __name__=='__main__':
     main()
